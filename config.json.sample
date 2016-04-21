@@ -1,0 +1,13 @@
+{
+  "iotCaPath": "path to the AWS root CA PEM",
+  "iotCertPath": "path to your PEM certificate",
+  "iotClientId": "the client id",
+  "iotEndpoint": "the IoT endpoint",
+  "iotKeyPath": "path to your PEM private key",
+  "iotRegion": "the IoT region you want to use",
+  "iotTriggerTopic": "topic to subscribe to, to trigger pictures",
+  "iotPublishTopic": "topic to publish the S3 object name to",
+  "localStorage": "the local folder you want to use to store pictures",
+  "s3Bucket": "the bucket",
+  "s3BucketFolder": "if you want to store images in a folder in that bucket"
+}
