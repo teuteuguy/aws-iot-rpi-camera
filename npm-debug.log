@@ -1,0 +1,65 @@
+0 info it worked if it ends with ok
+1 verbose cli [ '/usr/local/bin/node',
+1 verbose cli   '/usr/local/bin/npm',
+1 verbose cli   'install',
+1 verbose cli   '--save',
+1 verbose cli   'local-ip' ]
+2 info using npm@2.15.1
+3 info using node@v4.4.3
+4 verbose install initial load of /home/pi/camera/package.json
+5 warn package.json camera@1.0.0 No repository field.
+6 verbose installManyTop reading scoped package data from /home/pi/camera/node_modules/aws-iot-device-sdk/package.json
+7 verbose installManyTop reading scoped package data from /home/pi/camera/node_modules/aws-sdk/package.json
+8 verbose installManyTop reading scoped package data from /home/pi/camera/node_modules/camerapi/package.json
+9 verbose readDependencies loading dependencies from /home/pi/camera/package.json
+10 silly cache add args [ 'local-ip', null ]
+11 verbose cache add spec local-ip
+12 silly cache add parsed spec Result {
+12 silly cache add   raw: 'local-ip',
+12 silly cache add   scope: null,
+12 silly cache add   name: 'local-ip',
+12 silly cache add   rawSpec: '',
+12 silly cache add   spec: 'latest',
+12 silly cache add   type: 'tag' }
+13 silly addNamed local-ip@latest
+14 verbose addNamed "latest" is being treated as a dist-tag for local-ip
+15 info addNameTag [ 'local-ip', 'latest' ]
+16 silly mapToRegistry name local-ip
+17 silly mapToRegistry using default registry
+18 silly mapToRegistry registry https://registry.npmjs.org/
+19 silly mapToRegistry data Result {
+19 silly mapToRegistry   raw: 'local-ip',
+19 silly mapToRegistry   scope: null,
+19 silly mapToRegistry   name: 'local-ip',
+19 silly mapToRegistry   rawSpec: '',
+19 silly mapToRegistry   spec: 'latest',
+19 silly mapToRegistry   type: 'tag' }
+20 silly mapToRegistry uri https://registry.npmjs.org/local-ip
+21 verbose addNameTag registry:https://registry.npmjs.org/local-ip not in flight; fetching
+22 verbose request uri https://registry.npmjs.org/local-ip
+23 verbose request no auth needed
+24 info attempt registry request try #1 at 8:29:43 AM
+25 verbose request id 2fad457c118f3ebb
+26 http request GET https://registry.npmjs.org/local-ip
+27 info retry will retry, error on last attempt: Error: getaddrinfo EAI_AGAIN registry.npmjs.org:443
+28 info attempt registry request try #2 at 8:29:54 AM
+29 http request GET https://registry.npmjs.org/local-ip
+30 info retry will retry, error on last attempt: Error: getaddrinfo EAI_AGAIN registry.npmjs.org:443
+31 info attempt registry request try #3 at 8:30:54 AM
+32 http request GET https://registry.npmjs.org/local-ip
+33 verbose stack Error: getaddrinfo EAI_AGAIN registry.npmjs.org:443
+33 verbose stack     at Object.exports._errnoException (util.js:870:11)
+33 verbose stack     at errnoException (dns.js:32:15)
+33 verbose stack     at GetAddrInfoReqWrap.onlookup [as oncomplete] (dns.js:78:26)
+34 verbose cwd /home/pi/camera
+35 error Linux 4.1.19-v7+
+36 error argv "/usr/local/bin/node" "/usr/local/bin/npm" "install" "--save" "local-ip"
+37 error node v4.4.3
+38 error npm  v2.15.1
+39 error code EAI_AGAIN
+40 error errno EAI_AGAIN
+41 error syscall getaddrinfo
+42 error getaddrinfo EAI_AGAIN registry.npmjs.org:443
+43 error If you need help, you may report this error at:
+43 error     <https://github.com/npm/npm/issues>
+44 verbose exit [ 1, true ]

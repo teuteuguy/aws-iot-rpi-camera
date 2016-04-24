@@ -19,20 +19,67 @@ var configIoT = {
     "host": config.iotEndpoint
 };
 
-var device = awsIot.device(configIoT);
+// var device = awsIot.device(configIoT);
+var thingShadow = awsIot.thingShadow(configIoT);
+
+var thingState = {
+    ip: null
+};
+
+
+var os = require('os');
+var ifaces = os.networkInterfaces();
+setInterval(function() {
+
+    ifaces.wlan0.forEach(function(iface) {
+
+	// console.log(iface.family, iface.address);
+
+        if (iface.family == 'IPv4') {
+
+            thingState.ip = iface.address;
+
+            thingShadow.update(config.iotClientId, {
+		state: {
+			reported: thingState
+		}
+	    }, function() {
+		console.log('updated');
+	    });
+
+        }
+    });
+
+}, 5000);
 
 
 var s3Client = new aws.S3();
 
-device.on('connect', function() {
+thingShadow.on('connect', function() {
     console.log('Connection established to AWS IoT');
     console.log('Subscribing to topic', config.iotTriggerTopic);
-    device.subscribe('chip/button');
+    thingShadow.subscribe('chip/button');
+    thingShadow.register(config.iotClientId, {  
+      persistentSubscribe: true
+    });
 });
 
-device.on('message', function(topic, payload) {
+thingShadow.on('close', function() {
+  thingShadow.unregister(config.iotClientId);
+});
+
+thingShadow.on('reconnect', function() {
+    thingShadow.subscribe('chip/button');
+    thingShadow.register(config.iotClientId, {
+        persistentSubscribe: true
+    });
+});  
+
+thingShadow.on('message', function(topic, payload) {
 
     console.log('Message received on topic', topic, 'with message', payload.toString());
+
+  if (topic == 'chip/button') {
 
     var filename = Date.now() + '.jpg';
 
@@ -63,7 +110,7 @@ device.on('message', function(topic, payload) {
                 if (!error) {
                   console.log('Upload to S3 finished', arguments);
                   console.log('Publishing to', config.iotPublishTopic);
-                  device.publish(config.iotPublishTopic, key);
+                  thingShadow.publish(config.iotPublishTopic, key);
                 } else {
                   console.error('ERROR', error);
                 }
@@ -77,5 +124,6 @@ device.on('message', function(topic, payload) {
 
     });
 
+  }
 
 });
