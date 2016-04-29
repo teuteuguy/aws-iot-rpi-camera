@@ -110,7 +110,7 @@ thingShadow.on('message', function(topic, payload) {
                 if (!error) {
                   console.log('Upload to S3 finished', arguments);
                   console.log('Publishing to', config.iotPublishTopic);
-                  thingShadow.publish(config.iotPublishTopic, key);
+                  thingShadow.publish(config.iotPublishTopic, JSON.stringify({filename: key}));
                 } else {
                   console.error('ERROR', error);
                 }
