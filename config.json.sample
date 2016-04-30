@@ -9,5 +9,7 @@
   "iotPublishTopic": "topic to publish the S3 object name to",
   "localStorage": "the local folder you want to use to store pictures",
   "s3Bucket": "the bucket",
-  "s3BucketFolder": "if you want to store images in a folder in that bucket"
+  "s3BucketFolder": "if you want to store images in a folder in that bucket",
+  "cameraWidth": 1920,
+  "cameraHeight": 1080
 }
