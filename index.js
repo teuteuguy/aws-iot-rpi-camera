@@ -19,7 +19,6 @@ var configIoT = {
     "host": config.iotEndpoint
 };
 
-// var device = awsIot.device(configIoT);
 var thingShadow = awsIot.thingShadow(configIoT);
 
 var thingState = {
@@ -85,7 +84,7 @@ thingShadow.on('message', function(topic, payload) {
 
     cam.prepare({
         timeout: 0,
-        quality: 15,
+        quality: 85,
         width: 800,
         height: 600
     }).takePicture(filename, function(file, err) {
@@ -99,10 +98,13 @@ thingShadow.on('message', function(topic, payload) {
             var key = '';
             if (config.s3BucketFolder && config.s3BucketFolder.length > 0) key += config.s3BucketFolder + '/';
             key += filename;
+            
+            var bucket = config.s3Bucket;
+//            if (config.s3BucketFolder && config.s3BucketFolder.length > 0) bucket += '/' + config.s3BucketFolder;       
 
             s3Client.putObject({
                 ACL: 'public-read',
-                Bucket: config.s3Bucket,
+                Bucket: bucket, //config.s3Bucket,
                 Key: key,
                 Body: fileBuffer,
                 ContentType: 'image/jpg'

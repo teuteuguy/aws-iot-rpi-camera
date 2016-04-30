@@ -7,9 +7,9 @@ Restart=on-failure
 RestartSec=10s
 Environment="NODE_PATH=/usr/local/bin/node"
 Environment="HOME=/home/pi"
-WorkingDirectory=/home/pi/camera
+WorkingDirectory=/home/pi/aws-iot-rpi-camera
 ExecStartPre=/bin/sleep 1
-ExecStart=/usr/local/bin/node /home/pi/camera/index.js
+ExecStart=/usr/local/bin/node /home/pi/aws-iot-rpi-camera/index.js
 
 [Install]
 WantedBy=multi-user.target
