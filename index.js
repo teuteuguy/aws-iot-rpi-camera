@@ -27,6 +27,8 @@ var thingState = {
     cameraRotation: 0
 };
 
+console.log('state', thingState);
+
 var os = require('os');
 var ifaces = os.networkInterfaces();
 setInterval(function() {
@@ -78,7 +80,9 @@ thingShadow.on('delta', function(thingName, stateObject) {
     console.log('received thingShadow delta on ' + thingName+': ' + JSON.stringify(stateObject));
 
     if (stateObject.state.tweet) thingState.tweet = stateObject.state.tweet;
-    if (stateObject.state.cameraRotation) thingState.cameraRotation = stateObject.state.cameraRotation;
+    if (stateObject.state.cameraRotation !== undefined) thingState.cameraRotation = stateObject.state.cameraRotation;
+
+    console.log('state', thingState);
 });
 
 
