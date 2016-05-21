@@ -2,7 +2,7 @@
 var AWS = require('aws-sdk'); // For S3
 
 // Access to IoT
-var awsIot = require('aws-iot-device-sdk'); // For IoT
+var awsIot = require('aws-iot-device-sdk');
 
 // Raspberry specific
 var fs = require('fs');
@@ -14,7 +14,7 @@ var ifaces = os.networkInterfaces();
 // Load config
 var config = require('./config.json');
 console.log('[SETUP] Loaded config:');
-console.log(config);
+// console.log(config);
 
 console.log('[SETUP] Configuring Camera to local folder:', config.localStorage);
 cam.baseFolder(config.localStorage);
@@ -36,10 +36,12 @@ var thingState = {
     cameraRotation: 0
 };
 
-console.log('[SETUP] Initializing IoT thingShadow with state:', thingState);
+console.log('[SETUP] Initializing IoT thingShadow with config:');
+// console.log(configIoT);
 
 var thingShadow = awsIot.thingShadow(configIoT);
 
+console.log('[SETUP] thingShadow state initialized with:', thingState);
 
 function connectAndReconnect() {
     console.log('[RUNNING] Registring to thingShadow');
@@ -52,23 +54,23 @@ function connectAndReconnect() {
 
 
 thingShadow.on('connect', function() {
-    console.log('[RUNNING] thingShadow.on(connect) Connection established to AWS IoT');
+    console.log('[EVENT] thingShadow.on(connect) Connection established to AWS IoT');
 	connectAndReconnect();
 });
 
 thingShadow.on('reconnect', function() {
-    console.log('[RUNNING] thingShadow.on(reconnect) Reconnected to AWS IoT');
+    console.log('[EVENT] thingShadow.on(reconnect) Reconnected to AWS IoT');
 	connectAndReconnect();
 });  
 
 thingShadow.on('close', function() {
-    console.log('[RUNNING] thingShadow.on(close) Connection closed, unregistring to shadow.');
+    console.log('[EVENT] thingShadow.on(close) Connection closed, unregistring to shadow.');
 	thingShadow.unregister(config.iotClientId);
 });
 
 thingShadow.on('delta', function(thingName, stateObject) {
 
-    console.log('[RUNNING] thingShadow.on(delta): ' + thingName + ': ' + JSON.stringify(stateObject));
+    console.log('[EVENT] thingShadow.on(delta): ' + thingName + ': ' + JSON.stringify(stateObject));
 
     if (stateObject.state.tweet) thingState.tweet = stateObject.state.tweet;
     if (stateObject.state.cameraRotation !== undefined) thingState.cameraRotation = stateObject.state.cameraRotation;
@@ -81,7 +83,7 @@ thingShadow.on('delta', function(thingName, stateObject) {
 
 thingShadow.on('message', function(topic, payload) {
 
-    console.log('[RUNNING] thingShadow.on(message) received on topic', topic, 'with message', payload.toString());
+    console.log('[EVENT] thingShadow.on(message) received on topic', topic, 'with message', payload.toString());
 
     if (topic == config.iotTriggerTopic) {
 
