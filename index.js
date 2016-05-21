@@ -1,5 +1,5 @@
 // Access to S3
-var aws = require('aws-sdk'); // For S3
+var AWS = require('aws-sdk'); // For S3
 
 // Access to IoT
 var awsIot = require('aws-iot-device-sdk'); // For IoT
@@ -107,7 +107,7 @@ thingShadow.on('message', function(topic, payload) {
             
               var bucket = config.s3Bucket; // if (config.s3BucketFolder && config.s3BucketFolder.length > 0) bucket += '/' + config.s3BucketFolder;       
 
-			  var s3Client = new aws.S3();
+			  var s3Client = new AWS.S3();
               s3Client.putObject({
                   ACL: 'public-read',
                   Bucket: bucket,
@@ -141,6 +141,7 @@ setInterval(function() {
 
         if (iface.family == 'IPv4') {
 
+			// Get the Raspberry PIs IP so that we can view it, since it is headless.
             thingState.ip = iface.address;
 
             thingShadow.update(config.iotClientId, {
