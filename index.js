@@ -21,7 +21,7 @@ cam.baseFolder(config.localStorage);
 
 
 var configIoT = {
-    "keyPath": config.iotKeyPath,
+    "keyPath": config.iotKeyPath,    
     "certPath": config.iotCertPath,
     "caPath": config.iotCaPath,
     "clientId": config.iotClientId,
@@ -33,7 +33,9 @@ var configIoT = {
 var thingState = {
     ip: null, 
     tweet: 'Init from ' + config.iotClientId,
-    cameraRotation: 0
+    cameraRotation: 0,
+    accessKeyId: null,
+    secretAccessKey: null
 };
 
 console.log('[SETUP] Initializing IoT thingShadow with config:');
@@ -74,6 +76,8 @@ thingShadow.on('delta', function(thingName, stateObject) {
 
     if (stateObject.state.tweet) thingState.tweet = stateObject.state.tweet;
     if (stateObject.state.cameraRotation !== undefined) thingState.cameraRotation = stateObject.state.cameraRotation;
+    if (stateObject.state.accessKeyId !== undefined) thingState.accessKeyId = stateObject.state.accessKeyId;
+    if (stateObject.state.secretAccessKey !== undefined) thingState.secretAccessKey = stateObject.state.secretAccessKey;
 
     console.log('[RUNNING] Updated thingState:');
     console.log(thingState);
@@ -109,7 +113,11 @@ thingShadow.on('message', function(topic, payload) {
             
               var bucket = config.s3Bucket; // if (config.s3BucketFolder && config.s3BucketFolder.length > 0) bucket += '/' + config.s3BucketFolder;       
 
-			  var s3Client = new AWS.S3();
+			  var s3Client = new AWS.S3({
+			  	accessKeyId: thingState.accessKeyId,
+			  	secretAccessKey: thingState.secretAccessKey
+			  });
+              
               s3Client.putObject({
                   ACL: 'public-read',
                   Bucket: bucket,
