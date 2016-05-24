@@ -127,12 +127,16 @@ thingShadow.on('message', function(topic, payload) {
                 }, function(error, response) {
                     if (!error) {
                         console.log('[RUNNING] Upload to S3 finished', arguments);
+
                         var toPublish = JSON.stringify({
                             filename: key,
                             tweet: thingState.tweet
                         });
+
                         console.log('[RUNNING] Publishing to', config.iotPublishTopic, toPublish);
+
                         thingShadow.publish(config.iotPublishTopic, toPublish);
+
                     } else {
                         console.error('ERROR', error);
                     }
