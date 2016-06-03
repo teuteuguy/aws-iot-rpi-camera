@@ -26,8 +26,8 @@ var configIoT = {
     "caPath": config.iotCaPath,
     "clientId": config.iotClientId,
     "region": config.iotRegion,
-    "reconnectPeriod": 5000,
-    "host": config.iotEndpoint
+//    "reconnectPeriod": 5000,
+//    "host": config.iotEndpoint
 };
 
 var thingState = {
@@ -38,12 +38,34 @@ var thingState = {
     secretAccessKey: null
 };
 
+console.log('[SETUP] thingShadow state initialized with:', thingState);
+
 console.log('[SETUP] Initializing IoT thingShadow with config:');
-// console.log(configIoT);
+console.log(configIoT);
 
 var thingShadow = awsIot.thingShadow(configIoT);
 
-console.log('[SETUP] thingShadow state initialized with:', thingState);
+function intervalFunction() {
+    console.log('[RUNNING] In the interval function');
+    ifaces.wlan0.forEach(function(iface) {
+        if (iface.family == 'IPv4') {
+
+            // Get the Raspberry PIs IP so that we can view it, since it is headless.
+            thingState.ip = iface.address;
+
+            thingShadow.publish('test/topic', 'hello');
+
+            thingShadow.update(config.iotClientId, {
+                state: {
+                    reported: thingState
+                }
+            });
+        }
+    });
+
+}
+
+var intervalId = null;
 
 function connectAndReconnect() {
     console.log('[RUNNING] Registring to thingShadow');
@@ -51,23 +73,41 @@ function connectAndReconnect() {
       persistentSubscribe: true
     });
     console.log('[RUNNING] Subscribing to topic:', config.iotTriggerTopic);
-    thingShadow.subscribe(config.iotTriggerTopic);	
+    thingShadow.subscribe(config.iotTriggerTopic);
+
+    console.log('[RUNNING] Setting up interval');
+    intervalId = setInterval(intervalFunction, 5000);
 }
 
 
-thingShadow.on('connect', function() {
+thingShadow.on('connect', function(connack) {
     console.log('[EVENT] thingShadow.on(connect) Connection established to AWS IoT');
-	connectAndReconnect();
+    console.log(connack);
+    connectAndReconnect();
 });
 
 thingShadow.on('reconnect', function() {
     console.log('[EVENT] thingShadow.on(reconnect) Reconnected to AWS IoT');
-	connectAndReconnect();
+    clearInterval(intervalId);
+    connectAndReconnect();
 });  
 
 thingShadow.on('close', function() {
     console.log('[EVENT] thingShadow.on(close) Connection closed, unregistring to shadow.');
-	thingShadow.unregister(config.iotClientId);
+    clearInterval(intervalId);
+    thingShadow.unregister(config.iotClientId);
+});
+
+thingShadow.on('error', function(err) {
+    console.error('[EVENT] thingShadow.on(error) error:', err);
+});
+
+thingShadow.on('status', function(thingName, stat, clientToken, stateObject) {
+    console.log('[EVENT] thingShadow.on(status)');
+    console.log(thingName);
+    console.log(stat);
+    console.log(clientToken);
+    console.log(stateObject);
 });
 
 thingShadow.on('delta', function(thingName, stateObject) {
@@ -144,23 +184,4 @@ thingShadow.on('message', function(topic, payload) {
     }
 
 });
-
-setInterval(function() {
-
-    ifaces.wlan0.forEach(function(iface) {
-
-        if (iface.family == 'IPv4') {
-
-			// Get the Raspberry PIs IP so that we can view it, since it is headless.
-            thingState.ip = iface.address;
-
-            thingShadow.update(config.iotClientId, {
-				state: {
-					reported: thingState
-				}
-			});
-        }
-    });
-
-}, 5000);
 
