@@ -26,8 +26,8 @@ var configIoT = {
     "caPath": config.iotCaPath,
     "clientId": config.iotClientId,
     "region": config.iotRegion,
-//    "reconnectPeriod": 5000,
-//    "host": config.iotEndpoint
+    "reconnectPeriod": 5000,
+    "host": config.iotEndpoint
 };
 
 var thingState = {
@@ -67,10 +67,9 @@ function intervalFunction() {
 
 var intervalId = null;
 
-thingShadow.on('connect', function(connack) {
+thingShadow.on('connect', function() {
 
     console.log('[EVENT] thingShadow.on(connect) Connection established to AWS IoT');
-    console.log(connack);
 
     console.log('[RUNNING] Registring to thingShadow');
     thingShadow.register(config.iotClientId, {
@@ -100,10 +99,10 @@ thingShadow.on('error', function(err) {
 
 thingShadow.on('status', function(thingName, stat, clientToken, stateObject) {
     console.log('[EVENT] thingShadow.on(status)');
-    console.log(thingName);
-    console.log(stat);
-    console.log(clientToken);
-    console.log(stateObject);
+    console.log('[EVENT] thingName:', thingName);
+    console.log('[EVENT] stat:', stat);
+    console.log('[EVENT] clientToken:', clientToken);
+    console.log('[EVENT] stateObject:', stateObject);
 });
 
 thingShadow.on('delta', function(thingName, stateObject) {
