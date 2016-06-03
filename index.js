@@ -21,7 +21,7 @@ cam.baseFolder(config.localStorage);
 
 
 var configIoT = {
-    "keyPath": config.iotKeyPath,    
+    "keyPath": config.iotKeyPath,
     "certPath": config.iotCertPath,
     "caPath": config.iotCaPath,
     "clientId": config.iotClientId,
@@ -31,7 +31,7 @@ var configIoT = {
 };
 
 var thingState = {
-    ip: null, 
+    ip: null,
     tweet: 'Init from ' + config.iotClientId,
     cameraRotation: 0,
     accessKeyId: null,
@@ -67,29 +67,25 @@ function intervalFunction() {
 
 var intervalId = null;
 
-function connectAndReconnect() {
+thingShadow.on('connect', function(connack) {
+
+    console.log('[EVENT] thingShadow.on(connect) Connection established to AWS IoT');
+    console.log(connack);
+
     console.log('[RUNNING] Registring to thingShadow');
-    thingShadow.register(config.iotClientId, {  
-      persistentSubscribe: true
+    thingShadow.register(config.iotClientId, {
+        persistentSubscribe: true
     });
     console.log('[RUNNING] Subscribing to topic:', config.iotTriggerTopic);
     thingShadow.subscribe(config.iotTriggerTopic);
 
     console.log('[RUNNING] Setting up interval');
     intervalId = setInterval(intervalFunction, 5000);
-}
-
-
-thingShadow.on('connect', function(connack) {
-    console.log('[EVENT] thingShadow.on(connect) Connection established to AWS IoT');
-    console.log(connack);
-    connectAndReconnect();
 });
 
 thingShadow.on('reconnect', function() {
-    console.log('[EVENT] thingShadow.on(reconnect) Reconnected to AWS IoT');
+    console.log('[EVENT] thingShadow.on(reconnect) Trying to reconnect to AWS IoT');
     clearInterval(intervalId);
-    connectAndReconnect();
 });  
 
 thingShadow.on('close', function() {
@@ -131,55 +127,62 @@ thingShadow.on('message', function(topic, payload) {
 
     if (topic == config.iotTriggerTopic) {
 
-      var filename = Date.now() + '.jpg';
+        var filename = Date.now() + '.jpg';
 
-      cam.prepare({
-          timeout: 10,
-          quality: config.cameraQuality || 85,
-          width: config.cameraWidth || 800,
-          height: config.cameraHeight || 600,
-          rotation: thingState.cameraRotation
-      }).takePicture(filename, function(file, err) {
+        cam.prepare({
+            timeout: 10,
+            quality: config.cameraQuality || 85,
+            width: config.cameraWidth || 800,
+            height: config.cameraHeight || 600,
+            rotation: thingState.cameraRotation
+        }).takePicture(filename, function(file, err) {
 
-          if (!err) {
+            if (!err) {
 
-              console.log('[RUNNING] Tacking picture to', file);
+                console.log('[RUNNING] Tacking picture to', file);
 
-              var fileBuffer = fs.readFileSync(config.localStorage + '/' + filename);
+                var fileBuffer = fs.readFileSync(config.localStorage + '/' + filename);
 
-              var key = '';
-              if (config.s3BucketFolder && config.s3BucketFolder.length > 0) key += config.s3BucketFolder + '/';
-              key += filename;
-            
-              var bucket = config.s3Bucket; // if (config.s3BucketFolder && config.s3BucketFolder.length > 0) bucket += '/' + config.s3BucketFolder;       
+                var key = '';
+                if (config.s3BucketFolder && config.s3BucketFolder.length > 0) key += config.s3BucketFolder + '/';
+                key += filename;
 
-			  var s3Client = new AWS.S3({
-			  	accessKeyId: thingState.accessKeyId,
-			  	secretAccessKey: thingState.secretAccessKey
-			  });
-              
-              s3Client.putObject({
-                  ACL: 'public-read',
-                  Bucket: bucket,
-                  Key: key,
-                  Body: fileBuffer,
-                  ContentType: 'image/jpg'
-              }, function(error, response) {
-                  if (!error) {
-                    console.log('[RUNNING] Upload to S3 finished', arguments);
-                    var toPublish = JSON.stringify({filename: key, tweet: thingState.tweet});
-                    console.log('[RUNNING] Publishing to', config.iotPublishTopic, toPublish);
-                    thingShadow.publish(config.iotPublishTopic, toPublish);
-                  } else {
-                    console.error('ERROR', error);
-                  }
-              });
+                var bucket = config.s3Bucket; // if (config.s3BucketFolder && config.s3BucketFolder.length > 0) bucket += '/' + config.s3BucketFolder;       
 
-          } else {
-              console.error('ERROR: ', err);
-          }
+                var s3Client = new AWS.S3({
+                    accessKeyId: thingState.accessKeyId,
+                    secretAccessKey: thingState.secretAccessKey
+                });
 
-      });
+                s3Client.putObject({
+                    ACL: 'public-read',
+                    Bucket: bucket,
+                    Key: key,
+                    Body: fileBuffer,
+                    ContentType: 'image/jpg'
+                }, function(error, response) {
+                    if (!error) {
+                        console.log('[RUNNING] Upload to S3 finished', arguments);
+
+                        var toPublish = JSON.stringify({
+                            filename: key,
+                            tweet: thingState.tweet
+                        });
+
+                        console.log('[RUNNING] Publishing to', config.iotPublishTopic, toPublish);
+
+                        thingShadow.publish(config.iotPublishTopic, toPublish);
+
+                    } else {
+                        console.error('ERROR', error);
+                    }
+                });
+
+            } else {
+                console.error('ERROR: ', err);
+            }
+
+        });
 
     }
 
