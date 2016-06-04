@@ -27,13 +27,21 @@ var configIoT = {
     "clientId": config.iotClientId,
     "region": config.iotRegion,
     "reconnectPeriod": 5000,
-//    "host": config.iotEndpoint
+    "host": config.iotEndpoint
 };
 
 var thingState = {
     ip: null,
     tweet: 'Init from ' + config.iotClientId,
     cameraRotation: 0,
+    cameraQuality: 85,
+    cameraWidth: 1920,
+    cameraHeight: 1080,
+    s3Bucket: null,
+    s3BucketFolder: null,
+    s3BucketRegion: null,
+    iotTriggerTopic: null,
+    iotErrorTopic: null,
     accessKeyId: null,
     secretAccessKey: null
 };
@@ -45,63 +53,36 @@ console.log(configIoT);
 
 var thingShadow = awsIot.thingShadow(configIoT);
 
-function intervalFunction() {
-//    console.log('[RUNNING] In the interval function');
-    ifaces.wlan0.forEach(function(iface) {
-        if (iface.family == 'IPv4') {
-
-            // Get the Raspberry PIs IP so that we can view it, since it is headless.
-            thingState.ip = iface.address;
-
-            thingShadow.publish('test/topic', 'hello');
-
-            thingShadow.update(config.iotClientId, {
-                state: {
-                    reported: thingState
-                }
-            });
-        }
-    });
-
-}
-
-var intervalId = null;
-
 thingShadow.on('connect', function() {
-    console.log('[EVENT] thingShadow.on(connect) Connection established to AWS IoT');
+    console.log('[EVENT] thingShadow.on(connect): Connection established to AWS IoT');
 
-    console.log('[RUNNING] Registring to thingShadow');
+    console.log('[EVENT] thingShadow.on(connect): Registring to thingShadow');
     thingShadow.register(config.iotClientId, {
         persistentSubscribe: true
     });
-    console.log('[RUNNING] Subscribing to topic:', config.iotTriggerTopic);
-    thingShadow.subscribe(config.iotTriggerTopic);
 
-    console.log('[RUNNING] Setting up interval');
-    intervalId = setInterval(intervalFunction, 5000);
+    setTimeout(refreshShadow, 5000);
 });
 
 thingShadow.on('reconnect', function() {
     console.log('[EVENT] thingShadow.on(reconnect) Trying to reconnect to AWS IoT');
-    clearInterval(intervalId);
-});  
+});
 
 thingShadow.on('close', function() {
     console.log('[EVENT] thingShadow.on(close) Connection closed, unregistring to shadow.');
-    clearInterval(intervalId);
     thingShadow.unregister(config.iotClientId);
 });
 
 thingShadow.on('error', function(err) {
     console.error('[EVENT] thingShadow.on(error) error:', err);
+    process.exit();
 });
 
 thingShadow.on('status', function(thingName, stat, clientToken, stateObject) {
-    console.log('[EVENT] thingShadow.on(status)');
-    console.log('[EVENT] thingName:', thingName);
-    console.log('[EVENT] stat:', stat);
-    console.log('[EVENT] clientToken:', clientToken);
-    console.log('[EVENT] stateObject:', stateObject);
+    console.log('[EVENT] thingShadow.on(status): thingName:', thingName);
+    console.log('[EVENT] thingShadow.on(status): stat:', stat);
+    console.log('[EVENT] thingShadow.on(status): clientToken:', clientToken);
+    console.log('[EVENT] thingShadow.on(status): stateObject:', stateObject);
 });
 
 thingShadow.on('delta', function(thingName, stateObject) {
@@ -109,55 +90,78 @@ thingShadow.on('delta', function(thingName, stateObject) {
     console.log('[EVENT] thingShadow.on(delta): ' + thingName + ': ' + JSON.stringify(stateObject));
 
     if (stateObject.state.tweet) thingState.tweet = stateObject.state.tweet;
+
+    if (stateObject.state.s3Bucket !== undefined) thingState.s3Bucket = stateObject.state.s3Bucket;
+    if (stateObject.state.s3BucketRegion !== undefined) thingState.s3BucketRegion = stateObject.state.s3BucketRegion;
+    if (stateObject.state.s3BucketFolder !== undefined) thingState.s3BucketFolder = stateObject.state.s3BucketFolder;
+
     if (stateObject.state.cameraRotation !== undefined) thingState.cameraRotation = stateObject.state.cameraRotation;
+    if (stateObject.state.cameraQuality !== undefined) thingState.cameraQuality = stateObject.state.cameraQuality;
+    if (stateObject.state.cameraWidth !== undefined) thingState.cameraWidth = stateObject.state.cameraWidth;
+    if (stateObject.state.cameraHeight !== undefined) thingState.cameraHeight = stateObject.state.cameraHeight;
+
     if (stateObject.state.accessKeyId !== undefined) thingState.accessKeyId = stateObject.state.accessKeyId;
     if (stateObject.state.secretAccessKey !== undefined) thingState.secretAccessKey = stateObject.state.secretAccessKey;
 
-    console.log('[RUNNING] Updated thingState:');
+    if (stateObject.state.iotTriggerTopic !== undefined) {
+        if (thingState.iotTriggerTopic !== null) thingShadow.unsubscribe(thingState.iotTriggerTopic);
+        thingState.iotTriggerTopic = stateObject.state.iotTriggerTopic;
+        console.log('[EVENT] thingShadow.on(delta): Subscribing to topic:', thingState.iotTriggerTopic);
+        thingShadow.subscribe(thingState.iotTriggerTopic);
+    }
+    if (stateObject.state.iotErrorTopic !== undefined) thingState.iotErrorTopic = stateObject.state.iotErrorTopic;
+
+    console.log('[EVENT] thingShadow.on(delta): Updated thingState to:');
+    
     console.log(thingState);
 
+    refreshShadow();
 });
 
 
 thingShadow.on('message', function(topic, payload) {
 
-    console.log('[EVENT] thingShadow.on(message) received on topic', topic, 'with message', payload.toString());
+    console.log('[EVENT] thingShadow.on(message): received on topic', topic, 'with message', payload.toString());
 
-    if (topic == config.iotTriggerTopic) {
+    if (!(
+            topic === thingState.iotTriggerTopic && (
+                (thingState.s3Bucket !== null && thingState.s3Bucket !== '') ||
+                (thingState.s3BucketRegion !== null && thingState.s3BucketRegion !== '')
+            )
+        )) {
+        console.log('[EVENT] thingShadow.on(message): not doing anything because there is no S3 specified');
+    } else {
 
         var filename = Date.now() + '.jpg';
 
         cam.prepare({
             timeout: 10,
-            quality: config.cameraQuality || 85,
-            width: config.cameraWidth || 800,
-            height: config.cameraHeight || 600,
-            rotation: thingState.cameraRotation
+            quality: thingState.cameraQuality || 85,
+            width: thingState.cameraWidth || 800,
+            height: thingState.cameraHeight || 600,
+            rotation: thingState.cameraRotation || 0
         }).takePicture(filename, function(file, err) {
 
-            if (!err) {
+            if (err) {
+                return publishError(err);
+            } else {
 
-                console.log('[RUNNING] Tacking picture to', file);
+                console.log('[EVENT] thingShadow.on(message): Tacking picture to', file);
 
                 var fileBuffer = fs.readFileSync(config.localStorage + '/' + filename);
 
-                var key = '';
-                if (config.s3BucketFolder && config.s3BucketFolder.length > 0) key += config.s3BucketFolder + '/';
-                key += filename;
-
-                var bucket = config.s3Bucket; // if (config.s3BucketFolder && config.s3BucketFolder.length > 0) bucket += '/' + config.s3BucketFolder;       
+                var key = thingState.s3BucketFolder + '/' + filename;
+                var bucket = thingState.s3Bucket;
 
                 var s3Config = {
-                    region: config.s3BucketRegion,
+                    region: thingState.s3BucketRegion,
                     accessKeyId: thingState.accessKeyId,
                     secretAccessKey: thingState.secretAccessKey
                 };
-                console.log('[RUNNING] S3 config:');
-                console.log(s3Config);
 
                 var s3Client = new AWS.S3(s3Config);
 
-                console.log('[RUNNING] S3 putObject to', bucket, 'with key', key);
+                console.log('[EVENT] thingShadow.on(message): S3 putObject to', bucket, 'with key', key);
 
                 s3Client.putObject({
                     ACL: 'public-read',
@@ -166,23 +170,21 @@ thingShadow.on('message', function(topic, payload) {
                     Body: fileBuffer,
                     ContentType: 'image/jpg'
                 }, function(error, response) {
-                    if (!error) {
-                        console.log('[RUNNING] Upload to S3 finished', arguments);
-
-//                        var toPublish = JSON.stringify({
-//                            filename: key,
-//                            tweet: thingState.tweet
-//                        });
-//                        console.log('[RUNNING] Publishing to', config.iotPublishTopic, toPublish);
-//                        thingShadow.publish(config.iotPublishTopic, toPublish);
-
+                    if (error) {
+                        publishError(error);
                     } else {
-                        console.error('ERROR', error);
+                        console.log('[EVENT] thingShadow.on(message): Upload to S3 finished', arguments);
+
+                        // var toPublish = JSON.stringify({
+                        //     filename: key,
+                        //     tweet: thingState.tweet
+                        // });
+                        // console.log('[RUNNING] Publishing to', config.iotPublishTopic, toPublish);
+                        // thingShadow.publish(config.iotPublishTopic, toPublish);
+
                     }
                 });
 
-            } else {
-                console.error('ERROR: ', err);
             }
 
         });
@@ -191,3 +193,28 @@ thingShadow.on('message', function(topic, payload) {
 
 });
 
+function publishError(errorObject) {
+    console.error('[ERROR]:', errorObject);
+    if (thingState.iotErrorTopic) thingShadow.publish(thingState.iotErrorTopic, JSON.stringify(errorObject));
+}
+
+var clientTokenUpdate;
+function refreshShadow() {
+    console.log('[REFRESH] Sending current state to AWS IoT');
+    ifaces.wlan0.forEach(function(iface) {
+        if (iface.family == 'IPv4') {
+            // Get the Raspberry PIs IP so that we can view it, since it is headless.
+            thingState.ip = iface.address;
+        }
+    });
+    clientTokenUpdate = thingShadow.update(config.iotClientId, {
+        state: {
+            reported: thingState
+        }
+    });
+    if (clientTokenUpdate === null) {
+        publishError({
+            error: 'Update of thingShadow failed, operation still in progress'
+        });
+    }
+}
