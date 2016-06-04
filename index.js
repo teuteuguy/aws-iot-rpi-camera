@@ -14,7 +14,7 @@ var ifaces = os.networkInterfaces();
 // Load config
 var config = require('./config.json');
 console.log('[SETUP] Loaded config:');
-// console.log(config);
+console.log(config);
 
 console.log('[SETUP] Configuring Camera to local folder:', config.localStorage);
 cam.baseFolder(config.localStorage);
@@ -27,7 +27,7 @@ var configIoT = {
     "clientId": config.iotClientId,
     "region": config.iotRegion,
     "reconnectPeriod": 5000,
-    "host": config.iotEndpoint
+//    "host": config.iotEndpoint
 };
 
 var thingState = {
@@ -46,7 +46,7 @@ console.log(configIoT);
 var thingShadow = awsIot.thingShadow(configIoT);
 
 function intervalFunction() {
-    console.log('[RUNNING] In the interval function');
+//    console.log('[RUNNING] In the interval function');
     ifaces.wlan0.forEach(function(iface) {
         if (iface.family == 'IPv4') {
 
@@ -68,7 +68,6 @@ function intervalFunction() {
 var intervalId = null;
 
 thingShadow.on('connect', function() {
-
     console.log('[EVENT] thingShadow.on(connect) Connection established to AWS IoT');
 
     console.log('[RUNNING] Registring to thingShadow');
@@ -148,10 +147,17 @@ thingShadow.on('message', function(topic, payload) {
 
                 var bucket = config.s3Bucket; // if (config.s3BucketFolder && config.s3BucketFolder.length > 0) bucket += '/' + config.s3BucketFolder;       
 
-                var s3Client = new AWS.S3({
+                var s3Config = {
+                    region: config.s3BucketRegion,
                     accessKeyId: thingState.accessKeyId,
                     secretAccessKey: thingState.secretAccessKey
-                });
+                };
+                console.log('[RUNNING] S3 config:');
+                console.log(s3Config);
+
+                var s3Client = new AWS.S3(s3Config);
+
+                console.log('[RUNNING] S3 putObject to', bucket, 'with key', key);
 
                 s3Client.putObject({
                     ACL: 'public-read',
@@ -163,14 +169,12 @@ thingShadow.on('message', function(topic, payload) {
                     if (!error) {
                         console.log('[RUNNING] Upload to S3 finished', arguments);
 
-                        var toPublish = JSON.stringify({
-                            filename: key,
-                            tweet: thingState.tweet
-                        });
-
-                        console.log('[RUNNING] Publishing to', config.iotPublishTopic, toPublish);
-
-                        thingShadow.publish(config.iotPublishTopic, toPublish);
+//                        var toPublish = JSON.stringify({
+//                            filename: key,
+//                            tweet: thingState.tweet
+//                        });
+//                        console.log('[RUNNING] Publishing to', config.iotPublishTopic, toPublish);
+//                        thingShadow.publish(config.iotPublishTopic, toPublish);
 
                     } else {
                         console.error('ERROR', error);
