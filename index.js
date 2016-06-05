@@ -1,4 +1,5 @@
-// Access to S3 var AWS = require('aws-sdk'); // For S3
+// Access to S3
+var AWS = require('aws-sdk'); // For S3
 
 // Access to IoT
 var awsIot = require('aws-iot-device-sdk');
@@ -41,6 +42,8 @@ var thingState = {
     s3BucketRegion: null,
     iotTriggerTopic: null,
     iotErrorTopic: null,
+    iotUploadedTopic: null,
+    iotActivityTopic: null,
     accessKeyId: null,
     secretAccessKey: null
 };
@@ -110,9 +113,11 @@ thingShadow.on('delta', function(thingName, stateObject) {
         thingShadow.subscribe(thingState.iotTriggerTopic);
     }
     if (stateObject.state.iotErrorTopic !== undefined) thingState.iotErrorTopic = stateObject.state.iotErrorTopic;
+    if (stateObject.state.iotUploadedTopic !== undefined) thingState.iotUploadedTopic = stateObject.state.iotUploadedTopic;
+    if (stateObject.state.iotActivityTopic !== undefined) thingState.iotActivityTopic = stateObject.state.iotActivityTopic;
 
     console.log('[EVENT] thingShadow.on(delta): Updated thingState to:');
-    
+
     console.log(thingState);
 
     setTimeout(refreshShadow, 1000);
@@ -133,6 +138,8 @@ thingShadow.on('message', function(topic, payload) {
     } else {
 
         var filename = Date.now() + '.jpg';
+
+        publishActivity('Taking picture ' + filename);
 
         cam.prepare({
             timeout: 10,
@@ -163,6 +170,8 @@ thingShadow.on('message', function(topic, payload) {
 
                 console.log('[EVENT] thingShadow.on(message): S3 putObject to', bucket, 'with key', key);
 
+		        publishActivity('Uploading picture to S3 bucket' + bucket + ' with key: ' + key);
+
                 s3Client.putObject({
                     ACL: 'public-read',
                     Bucket: bucket,
@@ -177,12 +186,16 @@ thingShadow.on('message', function(topic, payload) {
                         console.log('[EVENT] thingShadow.on(message): Deleting local file');
                         fs.unlinkSync(config.localStorage + '/' + filename);
 
-                        // var toPublish = JSON.stringify({
-                        //     filename: key,
-                        //     tweet: thingState.tweet
-                        // });
-                        // console.log('[RUNNING] Publishing to', config.iotPublishTopic, toPublish);
-                        // thingShadow.publish(config.iotPublishTopic, toPublish);
+				        publishActivity('Deleted picture locally');
+
+                        if (thingState.iotUploadedTopic) {
+                            var toPublish = JSON.stringify({
+                                filename: key,
+                                tweet: thingState.tweet
+                            });
+                            console.log('[RUNNING] Publishing to', thingState.iotUploadedTopic, toPublish);
+                            thingShadow.publish(thingState.iotUploadedTopic, toPublish);
+                        }
 
                     }
                 });
@@ -200,7 +213,14 @@ function publishError(errorObject) {
     if (thingState.iotErrorTopic) thingShadow.publish(thingState.iotErrorTopic, JSON.stringify(errorObject));
 }
 
+function publishActivity(message) {
+    if (thingState.iotActivityTopic) thingShadow.publish(thingState.iotActivityTopic, JSON.stringify({
+        activity: message
+    }));
+}
+
 var clientTokenUpdate;
+
 function refreshShadow() {
     console.log('[REFRESH] Sending current state to AWS IoT');
     ifaces.wlan0.forEach(function(iface) {
