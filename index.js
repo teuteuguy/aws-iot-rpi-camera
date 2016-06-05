@@ -1,5 +1,4 @@
-// Access to S3
-var AWS = require('aws-sdk'); // For S3
+// Access to S3 var AWS = require('aws-sdk'); // For S3
 
 // Access to IoT
 var awsIot = require('aws-iot-device-sdk');
@@ -75,7 +74,8 @@ thingShadow.on('close', function() {
 
 thingShadow.on('error', function(err) {
     console.error('[EVENT] thingShadow.on(error) error:', err);
-    process.exit();
+    // process.exit();
+    throw new Error('[ERROR] Lets crash the node code because of this error.');
 });
 
 thingShadow.on('status', function(thingName, stat, clientToken, stateObject) {
@@ -115,7 +115,7 @@ thingShadow.on('delta', function(thingName, stateObject) {
     
     console.log(thingState);
 
-    refreshShadow();
+    setTimeout(refreshShadow, 1000);
 });
 
 
@@ -150,7 +150,7 @@ thingShadow.on('message', function(topic, payload) {
 
                 var fileBuffer = fs.readFileSync(config.localStorage + '/' + filename);
 
-                var key = thingState.s3BucketFolder + '/' + filename;
+                var key = thingState.s3BucketFolder + '/' + config.iotClientId + '/' + filename;
                 var bucket = thingState.s3Bucket;
 
                 var s3Config = {
@@ -173,7 +173,9 @@ thingShadow.on('message', function(topic, payload) {
                     if (error) {
                         publishError(error);
                     } else {
-                        console.log('[EVENT] thingShadow.on(message): Upload to S3 finished', arguments);
+                        console.log('[EVENT] thingShadow.on(message): Upload to S3 finished', response);
+                        console.log('[EVENT] thingShadow.on(message): Deleting local file');
+                        fs.unlinkSync(config.localStorage + '/' + filename);
 
                         // var toPublish = JSON.stringify({
                         //     filename: key,
