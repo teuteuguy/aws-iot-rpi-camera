@@ -1,21 +1,162 @@
-// Access to S3
+// Load the AWS SDK
 var AWS = require('aws-sdk'); // For S3
 
-// Access to IoT
+// Load the AWS IoT Javascript SDK
 var awsIot = require('aws-iot-device-sdk');
 
 // Raspberry specific
+var Q = require('q');
 var fs = require('fs');
 var Camera = require('camerapi');
 var cam = new Camera();
-var os = require('os');
-var ifaces = os.networkInterfaces();
 
-// Load config
+// Load config file
 var config = require('./config.json');
 console.log('[SETUP] Loaded config:');
 console.log(config);
 
+// Helper functions
+var os = require('os');
+var ifaces = os.networkInterfaces();
+
+function getIPForInterface(interface) {
+    var ip = null;
+
+    ifaces[interface].forEach(function(iface) {
+        if (iface.family == 'IPv4') {
+            ip = iface.address;
+        }
+    });
+
+    return ip;
+}
+
+function publishError(errorObject) {
+    console.error('[ERROR]:', errorObject);
+    if (thingState.iotErrorTopic) thingShadow.publish(thingState.iotErrorTopic, JSON.stringify(errorObject));
+}
+
+function publishActivity(message) {
+    if (thingState.iotActivityTopic) thingShadow.publish(thingState.iotActivityTopic, JSON.stringify({
+        activity: message
+    }));
+}
+
+var clientTokenUpdate;
+
+function refreshShadow() {
+    console.log('[REFRESH] Sending current state to AWS IoT');
+    // Get the Raspberry PIs IP so that we can view it, since it is headless.
+    thingState.ip = getIPForInterface('wlan0');
+
+    clientTokenUpdate = thingShadow.update(config.iotClientId, {
+        state: {
+            reported: thingState
+        }
+    });
+
+    if (clientTokenUpdate === null) {
+        publishError({
+            error: 'Update of thingShadow failed, operation still in progress'
+        });
+    }
+}
+
+function takePicture(filename) {
+    var deferred = Q.defer();
+
+    cam.prepare({
+        timeout: 10,
+        quality: thingState.cameraQuality || 85,
+        width: thingState.cameraWidth || 800,
+        height: thingState.cameraHeight || 600,
+        rotation: thingState.cameraRotation || 0
+    }).takePicture(filename, function(file, err) {
+
+        if (err) {
+            console.error('[ERROR] there was an error when trying to take the picture');
+            deferred.reject(err);
+        } else {
+            deferred.resolve(file);
+        }
+
+    });
+
+    return deferred.promise;
+}
+
+function getCognitoCredentials() {
+    var deferred = Q.defer();
+
+    if (!thingState.cognitoIdentityPoolId || !thingState.cognitoRegion) {
+        console.error('[ERROR] No CognitoIdentityPoolId or CognitoRegion provided in the state');
+        deferred.reject({
+            error: 'No CognitoIdentityPoolId or CognitoRegion provided in the state'
+        });
+    } else {
+
+        // Initialize the Amazon Cognito credentials provider
+        AWS.config.region = thingState.cognitoRegion; // Region
+        AWS.config.credentials = new AWS.CognitoIdentityCredentials({
+            IdentityPoolId: thingState.cognitoIdentityPoolId,
+        });
+
+        AWS.config.credentials.get(function(err) {
+
+            if (err) {
+                console.error('[ERROR] there was an error when trying to authenticate with Cognito');
+                deferred.reject(err);
+            } else {
+                deferred.resolve();
+            }
+
+        });
+
+    }
+
+    return deferred.promise;
+}
+
+
+function uploadToS3(bucket, key, filename) {
+
+    var deferred = Q.defer();
+
+    var s3Config = {
+        region: thingState.s3BucketRegion
+    };
+
+    var s3Client = new AWS.S3(s3Config);
+
+    s3Client.putObject({
+        ACL: 'public-read',
+        Bucket: bucket,
+        Key: key,
+        Body: fs.readFileSync(filename),
+        ContentType: 'image/jpg'
+    }, function(err, response) {
+
+        if (err) {
+            console.error('[ERROR] there was an error when uploading picture to S3');
+            deferred.reject(err);
+        } else {
+            console.log('[EVENT] uploadToS3: Upload to S3 finished', response);
+            console.log('[EVENT] uploadToS3: Deleting local file');
+            // Lets delete the file, now that it's been uploaded.
+            fs.unlinkSync(filename);
+
+            deferred.resolve(key);
+        }
+
+    });
+
+    return deferred.promise;
+
+}
+
+
+
+// Start of the Application
 console.log('[SETUP] Configuring Camera to local folder:', config.localStorage);
 cam.baseFolder(config.localStorage);
 
@@ -32,20 +173,19 @@ var configIoT = {
 
 var thingState = {
     ip: null,
-    tweet: 'Init from ' + config.iotClientId,
     cameraRotation: 0,
     cameraQuality: 85,
     cameraWidth: 1920,
     cameraHeight: 1080,
+    cognitoRegion: null,
+    cognitoIdentityPoolId: null,
     s3Bucket: null,
     s3BucketFolder: null,
     s3BucketRegion: null,
     iotTriggerTopic: null,
     iotErrorTopic: null,
     iotUploadedTopic: null,
-    iotActivityTopic: null,
-    accessKeyId: null,
-    secretAccessKey: null
+    iotActivityTopic: null
 };
 
 console.log('[SETUP] thingShadow state initialized with:', thingState);
@@ -92,8 +232,6 @@ thingShadow.on('delta', function(thingName, stateObject) {
 
     console.log('[EVENT] thingShadow.on(delta): ' + thingName + ': ' + JSON.stringify(stateObject));
 
-    if (stateObject.state.tweet) thingState.tweet = stateObject.state.tweet;
-
     if (stateObject.state.s3Bucket !== undefined) thingState.s3Bucket = stateObject.state.s3Bucket;
     if (stateObject.state.s3BucketRegion !== undefined) thingState.s3BucketRegion = stateObject.state.s3BucketRegion;
     if (stateObject.state.s3BucketFolder !== undefined) thingState.s3BucketFolder = stateObject.state.s3BucketFolder;
@@ -103,8 +241,8 @@ thingShadow.on('delta', function(thingName, stateObject) {
     if (stateObject.state.cameraWidth !== undefined) thingState.cameraWidth = stateObject.state.cameraWidth;
     if (stateObject.state.cameraHeight !== undefined) thingState.cameraHeight = stateObject.state.cameraHeight;
 
-    if (stateObject.state.accessKeyId !== undefined) thingState.accessKeyId = stateObject.state.accessKeyId;
-    if (stateObject.state.secretAccessKey !== undefined) thingState.secretAccessKey = stateObject.state.secretAccessKey;
+    if (stateObject.state.cognitoIdentityPoolId !== undefined) thingState.cognitoIdentityPoolId = stateObject.state.cognitoIdentityPoolId;
+    if (stateObject.state.cognitoRegion !== undefined) thingState.cognitoRegion = stateObject.state.cognitoRegion;
 
     if (stateObject.state.iotTriggerTopic !== undefined) {
         if (thingState.iotTriggerTopic !== null) thingShadow.unsubscribe(thingState.iotTriggerTopic);
@@ -139,104 +277,46 @@ thingShadow.on('message', function(topic, payload) {
 
         var filename = Date.now() + '.jpg';
 
-        publishActivity('Taking picture ' + filename);
+        takePicture(filename).then(function(file) {
 
-        cam.prepare({
-            timeout: 10,
-            quality: thingState.cameraQuality || 85,
-            width: thingState.cameraWidth || 800,
-            height: thingState.cameraHeight || 600,
-            rotation: thingState.cameraRotation || 0
-        }).takePicture(filename, function(file, err) {
+            console.log('[EVENT] thingShadow.on(message): Took picture', file);
+            console.log('[EVENT] thingShadow.on(message): Getting Cognito credentials');
 
-            if (err) {
-                return publishError(err);
-            } else {
+            return getCognitoCredentials();
 
-                console.log('[EVENT] thingShadow.on(message): Tacking picture to', file);
+        }).then(function() {
 
-                var fileBuffer = fs.readFileSync(config.localStorage + '/' + filename);
+            console.log('[EVENT] thingShadow.on(message): Access Key Id:', AWS.config.credentials.accessKeyId);
+            console.log('[EVENT] thingShadow.on(message): Secret Access Key:', AWS.config.credentials.secretAccessKey);
 
-                var key = thingState.s3BucketFolder + '/' + config.iotClientId + '/' + filename;
-                var bucket = thingState.s3Bucket;
+            console.log('[EVENT] thingShadow.on(message): Tacking picture');
 
-                var s3Config = {
-                    region: thingState.s3BucketRegion,
-                    accessKeyId: thingState.accessKeyId,
-                    secretAccessKey: thingState.secretAccessKey
-                };
+            var key = thingState.s3BucketFolder + '/' + config.iotClientId + '/' + filename;
+            var bucket = thingState.s3Bucket;
 
-                var s3Client = new AWS.S3(s3Config);
+            console.log('[EVENT] thingShadow.on(message): Upload file to S3');
 
-                console.log('[EVENT] thingShadow.on(message): S3 putObject to', bucket, 'with key', key);
+            publishActivity('Uploading picture to S3 bucket' + bucket + ' with key: ' + key);
 
-		        publishActivity('Uploading picture to S3 bucket' + bucket + ' with key: ' + key);
+            return uploadToS3(bucket, key, config.localStorage + '/' + filename);
 
-                s3Client.putObject({
-                    ACL: 'public-read',
-                    Bucket: bucket,
-                    Key: key,
-                    Body: fileBuffer,
-                    ContentType: 'image/jpg'
-                }, function(error, response) {
-                    if (error) {
-                        publishError(error);
-                    } else {
-                        console.log('[EVENT] thingShadow.on(message): Upload to S3 finished', response);
-                        console.log('[EVENT] thingShadow.on(message): Deleting local file');
-                        fs.unlinkSync(config.localStorage + '/' + filename);
+        }).then(function(key) {
 
-				        publishActivity('Deleted picture locally');
+            publishActivity('Upload to S3 completed');
 
-                        if (thingState.iotUploadedTopic) {
-                            var toPublish = JSON.stringify({
-                                filename: key,
-                                tweet: thingState.tweet
-                            });
-                            console.log('[RUNNING] Publishing to', thingState.iotUploadedTopic, toPublish);
-                            thingShadow.publish(thingState.iotUploadedTopic, toPublish);
-                        }
-
-                    }
+            if (thingState.iotUploadedTopic) {
+                var toPublish = JSON.stringify({
+                    filename: key
                 });
-
+                console.log('[EVENT] thingShadow.on(message): Publishing to', 'camera/pi-camera/uploaded', toPublish);
+                thingShadow.publish(thingState.iotUploadedTopic, toPublish);
             }
 
+        }).catch(function(err) {
+            console.error('[ERROR] error:', err);
+            publishError(err);
         });
 
     }
 
 });
-
-function publishError(errorObject) {
-    console.error('[ERROR]:', errorObject);
-    if (thingState.iotErrorTopic) thingShadow.publish(thingState.iotErrorTopic, JSON.stringify(errorObject));
-}
-
-function publishActivity(message) {
-    if (thingState.iotActivityTopic) thingShadow.publish(thingState.iotActivityTopic, JSON.stringify({
-        activity: message
-    }));
-}
-
-var clientTokenUpdate;
-
-function refreshShadow() {
-    console.log('[REFRESH] Sending current state to AWS IoT');
-    ifaces.wlan0.forEach(function(iface) {
-        if (iface.family == 'IPv4') {
-            // Get the Raspberry PIs IP so that we can view it, since it is headless.
-            thingState.ip = iface.address;
-        }
-    });
-    clientTokenUpdate = thingShadow.update(config.iotClientId, {
-        state: {
-            reported: thingState
-        }
-    });
-    if (clientTokenUpdate === null) {
-        publishError({
-            error: 'Update of thingShadow failed, operation still in progress'
-        });
-    }
-}
