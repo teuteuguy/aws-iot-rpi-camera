@@ -211,6 +211,8 @@ thingShadow.on('connect', function() {
     });
 
     setTimeout(refreshShadow, 5000);
+
+    publishActivity('Connected and registered to IoT');
 });
 
 thingShadow.on('reconnect', function() {
