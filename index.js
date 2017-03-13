@@ -282,6 +282,8 @@ thingShadow.on('message', function(topic, payload) {
         console.log('[EVENT] thingShadow.on(message): not doing anything because there is no S3 specified');
     } else {
 
+        publishActivity('Taking picture');
+
         var filename = Date.now() + '.jpg';
 
         Q.all([
