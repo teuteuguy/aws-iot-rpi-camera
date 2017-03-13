@@ -65,8 +65,10 @@ function refreshShadow() {
 function takePicture(filename) {
     var deferred = Q.defer();
 
+    console.log('[EVENT] takePicture: Taking picture');
+
     cam.prepare({
-        timeout: 10,
+        timeout: 1, //10,
         quality: thingState.cameraQuality || 85,
         width: thingState.cameraWidth || 800,
         height: thingState.cameraHeight || 600,
@@ -88,6 +90,8 @@ function takePicture(filename) {
 function getCognitoCredentials() {
     var deferred = Q.defer();
 
+    console.log('[EVENT] getCognitoCredentials: Getting credentials via Cognito');
+
     if (!thingState.cognitoIdentityPoolId || !thingState.cognitoRegion) {
         console.error('[ERROR] No CognitoIdentityPoolId or CognitoRegion provided in the state');
         deferred.reject({
@@ -107,7 +111,10 @@ function getCognitoCredentials() {
                 console.error('[ERROR] there was an error when trying to authenticate with Cognito');
                 deferred.reject(err);
             } else {
-                deferred.resolve();
+                deferred.resolve({
+                    accessKeyId: AWS.config.credentials.accessKeyId,
+                    secretAccessKey: AWS.config.credentials.secretAccessKey
+                });
             }
 
         });
@@ -277,14 +284,18 @@ thingShadow.on('message', function(topic, payload) {
 
         var filename = Date.now() + '.jpg';
 
-        takePicture(filename).then(function(file) {
+        Q.all([
+            takePicture(filename),
+            getCognitoCredentials()
+        ]).spread(function(file, creds) {
+
+        // takePicture(filename).then(function(file) {
 
             console.log('[EVENT] thingShadow.on(message): Took picture', file);
             console.log('[EVENT] thingShadow.on(message): Getting Cognito credentials');
 
-            return getCognitoCredentials();
-
-        }).then(function() {
+            // return getCognitoCredentials();
+        // }).then(function() {
 
             console.log('[EVENT] thingShadow.on(message): Access Key Id:', AWS.config.credentials.accessKeyId);
             console.log('[EVENT] thingShadow.on(message): Secret Access Key:', AWS.config.credentials.secretAccessKey);
