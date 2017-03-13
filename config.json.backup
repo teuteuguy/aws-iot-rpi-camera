@@ -1,9 +1,0 @@
-{
-  "localStorage": "/home/pi/Pictures",
-  "iotCaPath": "/home/pi/root-CA.pem",
-  "iotCertPath": "/home/pi/certificate.pem.crt_8cdd",
-  "iotClientId": "pi-camera",
-  "iotEndpoint": "A3KEX7OW4MKW1M.iot.ap-northeast-1.amazonaws.com",
-  "iotKeyPath": "/home/pi/private.pem.key_8cdd",
-  "iotRegion": "ap-northeast-1"
-}
