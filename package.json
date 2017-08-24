@@ -9,9 +9,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "aws-iot-device-sdk": "^1.0.12",
-    "aws-sdk": "^2.3.4",
-    "camerapi": "^0.1.0",
-    "q": "^1.4.1"
+    "aws-iot-device-sdk": "^2.0.1",
+    "aws-sdk": "^2.102.0",
+    "camerapi": "^0.1.0"
   }
 }
