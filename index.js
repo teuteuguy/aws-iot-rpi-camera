@@ -100,7 +100,7 @@ function uploadToS3(bucket, key, filename) {
 
     return new Promise((resolve, reject) => {
 
-		console.log('[EVENT] uploadToS3: Uploading to S3 bucket: ' + bucket + ' with key: ' + key + ' with filename: ' + filename);
+        console.log('[EVENT] uploadToS3: Uploading to S3 bucket: ' + bucket + ' with key: ' + key + ' with filename: ' + filename);
         
         var s3Config = {
             region: thingState.s3BucketRegion
@@ -183,7 +183,9 @@ thingShadow.on('connect', () => {
     }, () => {
         thingShadow.update(config.iotThingName, {
             state: {
-                reported: thingState
+                reported: {
+                    'rpi-camera': thingState
+                }
             }
         });
     });
@@ -216,32 +218,34 @@ thingShadow.on('delta', function(thingName, stateObject) {
 
     console.log('[EVENT] thingShadow.on(delta): ' + thingName + ': ' + JSON.stringify(stateObject.state));
 
-    for (var propertyName in stateObject.state) {
-        console.log('[EVENT] thingShadow.on(delta): ' + propertyName + ': ' + JSON.stringify(stateObject.state[propertyName]));
+    for (var propertyName in stateObject.state['rpi-camera']) {
+        console.log('[EVENT] thingShadow.on(delta): ' + propertyName + ': ' + JSON.stringify(stateObject.state['rpi-camera'][propertyName]));
 
         if (propertyName === 'iotTriggerTopic') {
-            console.log('[EVENT] thingShadow.on(delta): Subscribing to topic:', stateObject.state[propertyName]);
+            console.log('[EVENT] thingShadow.on(delta): Subscribing to topic:', stateObject.state['rpi-camera'][propertyName]);
             if (thingState.iotTriggerTopic !== null) {
                 console.log('[EVENT] thingShadow.on(delta): Need to unsubscribe to old topic:', thingState.iotTriggerTopic);
                 thingShadow.unsubscribe(thingState.iotTriggerTopic, publishError);
             }
 
-            thingShadow.subscribe(stateObject.state[propertyName], {
+            thingShadow.subscribe(stateObject.state['rpi-camera'][propertyName], {
                 qos: 1
             }, (err, granted) => {
                 if (err) publishError(err);
                 else {
-                    console.log('[EVENT] thingShadow.on(delta): Subscribed to topic:', stateObject.state[propertyName]);
+                    console.log('[EVENT] thingShadow.on(delta): Subscribed to topic:', stateObject.state['rpi-camera'][propertyName]);
                 }
             });
         }
 
-        thingState[propertyName] = stateObject.state[propertyName];
+        thingState[propertyName] = stateObject.state['rpi-camera'][propertyName];
     }
 
     thingShadow.update(config.iotThingName, {
         state: {
-            reported: thingState
+            reported: {
+                'rpi-camera': thingState
+            }
         }
     });
 
@@ -294,7 +298,11 @@ thingShadow.on('message', function(topic, payload) {
                     filename: key
                 };
                 console.log('[EVENT] thingShadow.on(message): Publishing to', thingState.iotUploadedTopic, JSON.stringify(toPublish, null, 2));
-                thingShadow.publish(thingState.iotUploadedTopic, JSON.stringify(toPublish));
+                thingShadow.publish(thingState.iotUploadedTopic, JSON.stringify(toPublish), {
+                    qos: 1
+                }, () => {
+                    console.log('[EVENT] thingShadow.on(message): Published', thingState.iotUploadedTopic);
+                });
             }
 
         }).catch((err) => {
