@@ -3,6 +3,7 @@
   "iotCaPath": "path to the AWS root CA PEM",
   "iotCertPath": "path to your PEM certificate",
   "iotClientId": "the client id",
+  "iotThingName": "the thingname in IoT",
   "iotEndpoint": "the IoT endpoint",
   "iotKeyPath": "path to your PEM private key",
   "iotRegion": "the IoT region you want to use"
