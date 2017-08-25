@@ -1,4 +1,4 @@
-#aws-iot-rpi-camera
+# aws-iot-rpi-camera
 
 This is my fun code for connecting a Raspberry Pi, using the camera, to AWS IoT.
 
@@ -36,7 +36,7 @@ Setup the Desired part of your Thing Shadow with the following values:
   }
 
 
-#Disclaimer
+# Disclaimer
 
 The code in this repository is provided "as is". It may not be sufficient for production environments. Be careful and inspect the code before running it.
 This code is my personal shit, has nothing to do with my employer.
