@@ -142,13 +142,13 @@ console.log('[SETUP] Configuring Camera to local folder:', config.localStorage);
 cam.baseFolder(config.localStorage);
 
 var configIoT = {
-    "keyPath": config.iotKeyPath,
-    "certPath": config.iotCertPath,
-    "caPath": config.iotCaPath,
-    "clientId": config.iotClientId,
-    "region": config.iotRegion,
-    "reconnectPeriod": 5000,
-    "host": config.iotEndpoint,
+    keyPath: config.iotKeyPath,
+    certPath: config.iotCertPath,
+    caPath: config.iotCaPath,
+    clientId: config.iotClientId,
+    region: config.iotRegion,
+    reconnectPeriod: 5000,
+    host: config.iotEndpoint,
     will: {
         topic: config.iotThingName + '/lwt',
         payload: JSON.stringify({
@@ -196,7 +196,8 @@ thingShadow.on('connect', () => {
         thingShadow.update(config.iotThingName, {
             state: {
                 reported: {
-                    'rpi-camera': thingState
+                    'rpi-camera': thingState,
+                    connected: true
                 }
             }
         });
