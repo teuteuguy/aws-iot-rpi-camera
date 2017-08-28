@@ -148,7 +148,19 @@ var configIoT = {
     "clientId": config.iotClientId,
     "region": config.iotRegion,
     "reconnectPeriod": 5000,
-    "host": config.iotEndpoint
+    "host": config.iotEndpoint,
+    will: {
+        topic: config.iotThingName + '/lwt',
+        payload: JSON.stringify({
+            state: {
+                reported: {
+                    connected: false
+                }
+            }
+        }),
+        qos: 0,
+        retain: false
+    }
 };
 
 var thingState = {
