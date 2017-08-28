@@ -257,7 +257,8 @@ thingShadow.on('delta', function(thingName, stateObject) {
     thingShadow.update(config.iotThingName, {
         state: {
             reported: {
-                'rpi-camera': thingState
+                'rpi-camera': thingState,
+                connected: true
             }
         }
     });
