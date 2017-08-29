@@ -252,6 +252,7 @@ thingShadow.on('delta', function(thingName, stateObject) {
         }
 
         thingState[propertyName] = stateObject.state['rpi-camera'][propertyName];
+        console.log('[EVENT] thingShadow.on(delta): ' + propertyName + ': ' + JSON.stringify(stateObject.state['rpi-camera'][propertyName]) + ' => ' + thingState[propertyName]);
     }
 
     thingShadow.update(config.iotThingName, {
