@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "install": "echo \"Installing systemctl service\" && install.sh",
+    "install": "echo \"Installing systemctl service\" && scripts/install.sh",
     "start": "node index.js"
   },
   "author": "",
