@@ -5,6 +5,7 @@ if [[ $EUID = 0 ]]; then
 	exit 1
 fi
 
+echo "Setting up bootup scripts"
 cp cameraiot.service /lib/systemd/system/cameraiot.service
 systemctl enable cameraiot.service
 systemctl daemon-reload
