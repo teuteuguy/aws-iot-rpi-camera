@@ -9,4 +9,4 @@ echo "Setting up bootup scripts"
 cp cameraiot.service /lib/systemd/system/cameraiot.service
 systemctl enable cameraiot.service
 systemctl daemon-reload
-systemctl start cameraiot.service
+# systemctl start cameraiot.service

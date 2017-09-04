@@ -9,6 +9,8 @@ Environment="NODE_PATH=/usr/local/bin/node"
 Environment="HOME=/home/pi"
 WorkingDirectory=/home/pi/aws-iot-rpi-camera
 ExecStartPre=/bin/sleep 1
+ExecStartPre=/usr/bin/git pull
+ExecStartPre=/usr/local/bin/npm install
 ExecStart=/usr/local/bin/node /home/pi/aws-iot-rpi-camera/index.js
 
 [Install]
