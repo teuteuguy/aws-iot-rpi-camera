@@ -14,8 +14,6 @@ var config = require('./config.json');
 console.log('[SETUP] Loaded config:');
 console.log(JSON.stringify(config, null, 2));
 
-// 20170824 - Rework code
-
 // Helper functions
 function publishError(errorObject) {
     if (errorObject) {
