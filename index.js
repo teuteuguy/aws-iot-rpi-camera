@@ -281,6 +281,7 @@ thingShadow.on('message', function(topic, payload) {
 
     console.log('[EVENT] thingShadow.on(message): received on topic', topic, 'with message', payload.toString());
 
+    console.log(eventTopic());
     if (topic === eventTopic()) {
         console.log('[EVENT] thingShadow.on(message): received an event:', payload.toString().event);
         
