@@ -287,7 +287,7 @@ thingShadow.on('message', function(topic, payload) {
         
         if (message.event === 'kill') {
             console.log('[EVENT] thingShadow.on(message): kill');
-            process.exit();
+            process.exit(1);
         }
 
     } else if (!(
