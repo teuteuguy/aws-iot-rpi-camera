@@ -30,6 +30,9 @@ function publishActivity(message) {
     }
 }
 
+function eventTopic() {
+    return 'rpi-camera/' + config.iotThingName + '/event';
+}
 
 
 function takePicture(filename) {
@@ -199,7 +202,8 @@ thingShadow.on('connect', () => {
                 }
             }
         });
-        thingShadow.subscribe('rpi-camera/' + config.iotThingName + '/event', {
+
+        thingShadow.subscribe(eventTopic(), {
             qos: 1
         }, (err, granted) => {
             if (err) publishError(err);
@@ -277,7 +281,13 @@ thingShadow.on('message', function(topic, payload) {
 
     console.log('[EVENT] thingShadow.on(message): received on topic', topic, 'with message', payload.toString());
 
-    if (!(
+    if (topic === eventTopic()) {
+
+        if (payload.event === 'reset') {
+            process.exit();
+        }
+
+    } else if (!(
             topic === thingState.iotTriggerTopic && (
                 (thingState.s3Bucket !== null && thingState.s3Bucket !== '') ||
                 (thingState.s3BucketRegion !== null && thingState.s3BucketRegion !== '') ||
