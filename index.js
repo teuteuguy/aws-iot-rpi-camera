@@ -282,9 +282,9 @@ thingShadow.on('message', function(topic, payload) {
     console.log('[EVENT] thingShadow.on(message): received on topic', topic, 'with message', payload.toString());
 
     if (topic === eventTopic()) {
-        console.log('[EVENT] thingShadow.on(message): received an event:', payload.event);
+        console.log('[EVENT] thingShadow.on(message): received an event:', payload.toString().event);
         
-        if (payload.event === 'kill') {
+        if (payload.toString().event === 'kill') {
             console.log('[EVENT] thingShadow.on(message): kill');
             process.exit();
         }
