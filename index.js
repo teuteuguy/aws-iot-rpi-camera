@@ -99,7 +99,7 @@ function uploadToS3(bucket, key, filename) {
     return new Promise((resolve, reject) => {
 
         console.log('[EVENT] uploadToS3: Uploading to S3 bucket: ' + bucket + ' with key: ' + key + ' with filename: ' + filename);
-        
+
         var s3Config = {
             region: thingState.s3BucketRegion
         };
@@ -197,6 +197,14 @@ thingShadow.on('connect', () => {
                     'rpi-camera': thingState,
                     connected: true
                 }
+            }
+        });
+        thingShadow.subscribe('rpi-camera/' + config.iotThingName + '/event', {
+            qos: 1
+        }, (err, granted) => {
+            if (err) publishError(err);
+            else {
+                console.log('[EVENT] thingShadow.on(connect): Subscribed to topic:', 'rpi-camera/' + config.iotThingName + '/event');
             }
         });
     });
